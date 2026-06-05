@@ -1,0 +1,200 @@
+============================================================================
+RETAIL DATA WAREHOUSE – EXPLORATORY DATA ANALYSIS REPORT
+Report generated: 2026-06-05 16:32:31
+============================================================================
+
+1. TABLE ROW COUNTS
+-------------------
+dim_customer          20,000
+dim_product            2,000
+dim_store                500
+dim_supplier             300
+dim_date                 730
+fact_transaction      50,000
+fact_inventory        50,000
+
+2. DATA QUALITY CHECKS
+----------------------
+✅ No NULLs found in key columns (dim_customer, dim_product)
+✅ No duplicate primary keys
+✅ Orphan records: 0 (customers, products, stores, inventory)
+
+3. CUSTOMER PROFILE
+-------------------
+Gender distribution:
+  Female   9,670  |  Avg spend ₹4,620.32
+  Male     9,512  |  Avg spend ₹4,604.33
+  Other      818  |  Avg spend ₹4,532.38
+
+Age group distribution:
+  18-25    3,667  |  ₹1,947.48
+  26-35    6,004  |  ₹4,542.09
+  36-45    4,981  |  ₹6,452.96
+  46-55    2,978  |  ₹5,804.02
+  56-65    1,552  |  ₹3,882.18
+  65+        818  |  ₹2,834.36
+
+City tier distribution:
+  Tier 1    9,949  |  ₹4,626.29
+  Tier 2    7,097  |  ₹4,595.44
+  Tier 3    2,954  |  ₹4,584.15
+
+Top 10 cities by customer count:
+  Mumbai (MH)           1,301
+  Chennai (TN)          1,286
+  Ahmedabad (GJ)        1,280
+  Bengaluru (KA)        1,262
+  Pune (MH)             1,224
+  Delhi (DL)            1,217
+  Kolkata (WB)          1,202
+  Hyderabad (TG)        1,177
+  Meerut (UP)             427
+  Nashik (MH)             410
+
+4. PRODUCT & MARGIN ANALYSIS
+----------------------------
+Gross margin by category (highest to lowest):
+  Home Care                 23.84%
+  Frozen & Non-Veg          23.80%
+  Snacks & Confectionery    23.63%
+  Groceries & Staples       23.61%
+  Beverages                 23.15%
+  Personal Care             22.89%
+  Dairy & Bakery            22.71%
+  Fruits & Vegetables       22.36%
+
+Top 10 products by revenue:
+  1. Zorabian Mutton 500g               ₹424,076.71  (565 units)
+  2. Fortune Sona Masoori Rice 25kg     ₹298,770.24  (313)
+  3. Fortune Basmati Rice 1kg           ₹291,191.37  (189)
+  4. Figaro Olive Oil 1L                ₹286,545.01  (227)
+  5. Premia Sona Masoori Rice 10kg      ₹266,942.54  (256)
+  6. Sumeru Fish 1kg                    ₹261,240.47  (483)
+  7. Licious Fish 250g                  ₹233,294.03  (444)
+  8. Sundrop Sunflower Oil 500ml        ₹228,776.40  (324)
+  9. Fortune Mustard Oil 5L             ₹227,584.85  (280)
+ 10. Saffola Olive Oil 500ml            ₹225,872.51  (193)
+
+⚠️ Negative profit transactions: 5,120 lines
+
+5. SALES PERFORMANCE
+--------------------
+Overall KPIs:
+  Total revenue    ₹30,812,147.87
+  Total cost       ₹26,118,522.18
+  Gross profit     ₹4,693,625.69
+  Overall margin   15.23%
+  Units sold       149,617
+
+Revenue by channel:
+  In-Store       ₹16,839,727  (27,410 transactions)
+  Online         ₹7,616,759  (12,451)
+  App            ₹4,737,212  (7,564)
+  Phone-Order    ₹1,618,449  (2,575)
+
+Festive vs non-festive:  (✅ corrected – second row now "Festive")
+  Non-Festive    41,099 transactions  |  ₹25,247,298  |  ₹42,009 daily avg
+  Festive         8,901 transactions  |   ₹5,564,850  |  ₹43,138 daily avg
+
+6. STORE PERFORMANCE
+--------------------
+Top 10 stores by revenue per sq ft:
+  1. UrbanMart Visakhapatnam    802 sq ft  |  ₹82.56 / sq ft
+  2. UrbanMart Vellore          825 sq ft  |  ₹80.69
+  3. QuickMart Solapur          804 sq ft  |  ₹78.91
+  4. RetailMart Vadodara        849 sq ft  |  ₹75.09
+  5. DailyNeeds Nagpur          981 sq ft  |  ₹73.46
+  6. FreshKart Tirupati         939 sq ft  |  ₹69.42
+  7. MegaMart Moradabad         946 sq ft  |  ₹69.04
+  8. UrbanMart Bareilly         973 sq ft  |  ₹67.83
+  9. MegaMart Vadodara          907 sq ft  |  ₹65.75
+ 10. ValueStore Salem           989 sq ft  |  ₹65.09
+
+7. INVENTORY EFFICIENCY
+-----------------------
+Stockout & overstock summary:
+  Stockout events         5,188
+  Stockout rate           10.38%
+  Products >60 days stock 1,970
+  Average days of stock   56.1
+
+Stockout % by category (worst first):
+  Snacks & Confectionery   11.12%
+  Groceries & Staples      10.63%
+  Home Care                10.43%
+  Beverages                10.36%
+  Dairy & Bakery           10.24%
+  Personal Care            10.22%
+  Frozen & Non-Veg          9.90%
+  Fruits & Vegetables       9.81%
+
+⚠️ Chronic overstock: 1,970 products with >60 days of stock (up to 999 days) – clearance needed.
+
+8. CUSTOMER SEGMENTATION
+------------------------
+Top 10 customers by total spend:
+  Khushi Nair      ₹39,372 (39 transactions)
+  Rahul Nair       ₹37,808 (37)
+  Deepak Das       ₹36,172 (25)
+  Ravi Patel       ₹34,097 (36)
+  Ishaan Patel     ₹33,342 (35)
+  Geeta Pandey     ₹32,483 (41)
+  Harsh Malhotra   ₹31,469 (36)
+  Avni Yadav       ₹31,357 (35)
+  Myra Saxena      ₹31,018 (30)
+  Prisha Bansal    ₹30,039 (39)
+
+Bottom 10 active customers (lowest spend):
+  Riya Nair        ₹51 (1 tx)
+  Ramesh Khan      ₹65 (1)
+  Sita Banerjee    ₹72 (1)
+  Akash Bansal     ₹139 (1)
+  Sara Agarwal     ₹144 (1)
+  Anvi Gupta       ₹187 (2)
+  Ravi Kumar       ₹213 (1)
+  Amit Menon       ₹218 (1)
+  Rajesh Sharma    ₹266 (1)
+  Ritu Banerjee    ₹288 (2)
+
+Customer lifetime value by tenure:
+  New (<1 month)         4,551 customers  |  avg CLV ₹696
+  Regular (1-6 months)   2,594 customers  |  avg CLV ₹1,420
+  Loyal (>6 months)     11,226 customers  |  avg CLV ₹2,134
+
+9. TIME SERIES HIGHLIGHTS
+-------------------------
+Month-over-month growth (all available months):
+  Jan 2025   ₹1,290,043   —
+  Feb 2025   ₹1,201,563   -6.86%
+  Mar 2025   ₹1,266,371   +5.39%
+  Apr 2025   ₹1,258,935   -0.59%
+  May 2025   ₹1,402,725  +11.42%
+  Jun 2025   ₹1,197,466  -14.63%
+  Jul 2025   ₹1,275,300   +6.50%
+  Aug 2025   ₹1,379,957   +8.21%
+  Sep 2025   ₹1,318,710   -4.44%
+  Oct 2025   ₹1,321,554   +0.22%
+  Nov 2025   ₹1,139,002  -13.81%
+  Dec 2025   ₹1,245,133   +9.32%
+
+Weekend vs weekday performance:  (✅ corrected – Saturday & Sunday now "Weekend")
+  Saturday (Weekend)   7,178 transactions  |  ₹4,517,769
+  Sunday   (Weekend)   6,948 transactions  |  ₹4,330,301
+  Friday   (Weekday)   7,218 transactions  |  ₹4,511,489
+  Thursday (Weekday)   7,210 transactions  |  ₹4,424,698
+  Tuesday  (Weekday)   7,100 transactions  |  ₹4,370,474
+  Monday   (Weekday)   7,199 transactions  |  ₹4,335,030
+  Wednesday(Weekday)   7,147 transactions  |  ₹4,322,388
+
+10. SUMMARY & RECOMMENDATIONS
+-----------------------------
+✅ Data quality: excellent (no nulls, no orphans, complete date range)
+⚠️ Negative profit: review pricing/discounts for 5,120 affected transactions
+⚠️ Chronic overstock: 1,970 products need clearance (up to 999 days)
+📈 Opportunity: Re-engage low-value customers (RFM 555, 455, 355)
+📌 Store strategy: Prioritise small-format high-efficiency stores (e.g., UrbanMart Visakhapatnam at ₹82.6/sq ft)
+📅 Festive lift: modest (+2.7% daily) – strengthen promotions with bundles
+
+============================================================================
+END OF EDA REPORT
+============================================================================
