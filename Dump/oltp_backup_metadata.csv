@@ -1,0 +1,6 @@
+﻿backup_id,backup_timestamp,table_name,record_count,backup_status
+1,2026-05-30 01:27:19,customers,20000,SUCCESS
+2,2026-05-30 01:27:19,products,2000,SUCCESS
+3,2026-05-30 01:27:19,stores,500,SUCCESS
+4,2026-05-30 01:27:19,sales_orders,50000,SUCCESS
+5,2026-05-30 01:27:19,sales_order_items,50000,SUCCESS

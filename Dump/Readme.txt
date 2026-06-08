@@ -1,0 +1,1 @@
+powershell.exe -ExecutionPolicy Bypass -File D:\ProjectDataSales\Dump\export_mysql_to_csv.ps1
