@@ -1,0 +1,471 @@
+
+<h2 class="sr-only">SQL question bank with 1000 questions based on retail_oltp schema, organized by difficulty and concept</h2>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.header { padding: 1.5rem 0 1rem; border-bottom: 0.5px solid var(--color-border-tertiary); margin-bottom: 1rem; }
+.header h1 { font-size: 20px; font-weight: 500; color: var(--color-text-primary); }
+.header p { font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1rem; align-items: center; }
+.controls select, .controls input { font-size: 13px; padding: 6px 10px; height: 34px; }
+.controls input[type=text] { flex: 1; min-width: 160px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1rem; }
+.stat { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; }
+.stat-num { font-size: 20px; font-weight: 500; color: var(--color-text-primary); }
+.stat-lbl { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+.q-list { display: flex; flex-direction: column; gap: 6px; }
+.q-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 12px 14px; cursor: pointer; transition: border-color 0.15s; }
+.q-card:hover { border-color: var(--color-border-secondary); }
+.q-card.open { border-color: var(--color-border-primary); }
+.q-top { display: flex; align-items: flex-start; gap: 10px; }
+.q-num { font-size: 11px; color: var(--color-text-tertiary); min-width: 32px; padding-top: 2px; }
+.q-text { font-size: 14px; color: var(--color-text-primary); line-height: 1.5; flex: 1; }
+.q-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+.b-easy { background: #EAF3DE; color: #3B6D11; }
+.b-medium { background: #FAEEDA; color: #854F0B; }
+.b-hard { background: #FAECE7; color: #993C1D; }
+.b-expert { background: #EEEDFE; color: #3C3489; }
+.b-concept { background: var(--color-background-secondary); color: var(--color-text-secondary); }
+.q-answer { margin-top: 10px; padding-top: 10px; border-top: 0.5px solid var(--color-border-tertiary); display: none; }
+.q-card.open .q-answer { display: block; }
+.q-answer pre { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; font-family: var(--font-mono); font-size: 12px; color: var(--color-text-primary); white-space: pre-wrap; line-height: 1.6; overflow-x: auto; }
+.hint { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 6px; font-style: italic; }
+.pagination { display: flex; align-items: center; gap: 8px; margin-top: 1rem; justify-content: center; flex-wrap: wrap; }
+.pagination button { font-size: 13px; padding: 5px 12px; }
+.pagination span { font-size: 13px; color: var(--color-text-secondary); }
+.no-results { text-align: center; padding: 2rem; color: var(--color-text-secondary); font-size: 14px; }
+.progress-bar { height: 3px; background: var(--color-background-secondary); border-radius: 2px; margin-bottom: 1rem; }
+.progress-fill { height: 100%; background: #1D9E75; border-radius: 2px; transition: width 0.3s; }
+.solved-btn { font-size: 11px; padding: 2px 8px; margin-left: auto; }
+.solved-btn.done { background: var(--color-background-secondary); color: #3B6D11; border-color: #9FE1CB; }
+</style>
+
+<div class="header">
+  <h1>SQL question bank — retail_oltp</h1>
+  <p>1000 questions across 10 concept areas · Easy → Expert · Based on your uploaded schema</p>
+</div>
+
+<div id="progress-wrap" class="progress-bar"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-num" id="s-total">1000</div><div class="stat-lbl">Total questions</div></div>
+  <div class="stat"><div class="stat-num" id="s-solved">0</div><div class="stat-lbl">Solved</div></div>
+  <div class="stat"><div class="stat-num" id="s-filtered">1000</div><div class="stat-lbl">Showing</div></div>
+  <div class="stat"><div class="stat-num" id="s-pct">0%</div><div class="stat-lbl">Progress</div></div>
+</div>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="Search questions..." oninput="applyFilters()">
+  <select id="f-diff" onchange="applyFilters()">
+    <option value="">All difficulties</option>
+    <option value="Easy">Easy</option>
+    <option value="Medium">Medium</option>
+    <option value="Hard">Hard</option>
+    <option value="Expert">Expert</option>
+  </select>
+  <select id="f-concept" onchange="applyFilters()">
+    <option value="">All concepts</option>
+  </select>
+  <select id="f-status" onchange="applyFilters()">
+    <option value="">All status</option>
+    <option value="solved">Solved</option>
+    <option value="unsolved">Unsolved</option>
+  </select>
+  <button onclick="applyFilters();document.getElementById('search').value='';document.getElementById('f-diff').value='';document.getElementById('f-concept').value='';document.getElementById('f-status').value='';">Reset</button>
+</div>
+
+<div id="q-list" class="q-list"></div>
+<div class="pagination" id="pagination"></div>
+
+<script>
+const CONCEPTS = [
+  "Basic SELECT","Filtering & WHERE","Aggregation & GROUP BY","JOINs","Subqueries",
+  "Window Functions","CTEs","Data Modification","Schema & DDL","Advanced Analytics"
+];
+
+const TABLES = {
+  brands:"brands(brand_id,brand_name,created_at)",
+  categories:"categories(category_id,category_name,parent_category_id,level,created_at)",
+  customers:"customers(customer_id,customer_code,customer_name,email,phone,gender,age_group,city,state,city_tier,is_registered,loyalty_member,avg_monthly_spend_inr,visit_frequency_per_month,registration_date,created_at,updated_at)",
+  inventory:"inventory(inventory_id,product_id,store_id,quantity_on_hand,quantity_reserved,reorder_point,last_updated)",
+  products:"products(product_id,product_code,product_name,brand_id,category_id,sub_category_id,mrp,cost_price,gross_margin_pct,is_perishable,veg_nonveg,max_qty_per_transaction,created_at)",
+  sales_orders:"sales_orders(order_id,order_number,customer_id,store_id,order_date,status_id,payment_mode_id,channel_id,total_amount,discount_amount,net_amount,is_return,created_at)",
+  sales_order_items:"sales_order_items(order_item_id,order_id,product_id,quantity,unit_price,discount_percent,discount_amount,net_price)",
+  stores:"stores(store_id,store_code,store_name,city,state,city_tier,cluster_zone,store_type,store_size_sqft,opening_date,created_at)",
+  suppliers:"suppliers(supplier_id,supplier_code,supplier_name,supplier_type,city,state,payment_days,lead_time_days,annual_contract_value_lakh,is_preferred_vendor,years_associated,created_at)",
+  product_suppliers:"product_suppliers(product_id,supplier_id,is_primary,cost_price)",
+  lookup_channel:"lookup_channel(channel_id,channel_name)",
+  lookup_order_status:"lookup_order_status(status_id,status_name)",
+  lookup_payment_mode:"lookup_payment_mode(payment_mode_id,payment_mode_name)",
+  lookup_gender:"lookup_gender(gender_code,gender_name)"
+};
+
+function q(id,text,diff,concept,hint,sql){
+  return {id,text,diff,concept,hint,sql,solved:false};
+}
+
+const ALL_QUESTIONS = [
+  q(1,"Retrieve all columns from the customers table.","Easy","Basic SELECT","Use SELECT *","SELECT * FROM customers;"),
+  q(2,"List all store names and their cities.","Easy","Basic SELECT","Select specific columns","SELECT store_name, city FROM stores;"),
+  q(3,"Show all product names and their MRP.","Easy","Basic SELECT","","SELECT product_name, mrp FROM products;"),
+  q(4,"List all brand names.","Easy","Basic SELECT","","SELECT brand_name FROM brands;"),
+  q(5,"Show all category names with their level.","Easy","Basic SELECT","","SELECT category_name, level FROM categories;"),
+  q(6,"Display all supplier names and their city.","Easy","Basic SELECT","","SELECT supplier_name, city FROM suppliers;"),
+  q(7,"List all distinct states from the stores table.","Easy","Basic SELECT","Use DISTINCT","SELECT DISTINCT state FROM stores;"),
+  q(8,"Show the first 10 rows from sales_orders.","Easy","Basic SELECT","Use LIMIT","SELECT * FROM sales_orders LIMIT 10;"),
+  q(9,"List all distinct cities from the customers table.","Easy","Basic SELECT","","SELECT DISTINCT city FROM customers;"),
+  q(10,"Show all payment mode names.","Easy","Basic SELECT","","SELECT payment_mode_name FROM lookup_payment_mode;"),
+  q(11,"Display all order status names.","Easy","Basic SELECT","","SELECT status_name FROM lookup_order_status;"),
+  q(12,"List all channel names.","Easy","Basic SELECT","","SELECT channel_name FROM lookup_channel;"),
+  q(13,"Show all gender codes and names.","Easy","Basic SELECT","","SELECT gender_code, gender_name FROM lookup_gender;"),
+  q(14,"List all product codes and names.","Easy","Basic SELECT","","SELECT product_code, product_name FROM products;"),
+  q(15,"Show the store code, name and store type for all stores.","Easy","Basic SELECT","","SELECT store_code, store_name, store_type FROM stores;"),
+  q(16,"Display customer name, email and phone for all customers.","Easy","Basic SELECT","","SELECT customer_name, email, phone FROM customers;"),
+  q(17,"Show all inventory records with product_id and quantity_on_hand.","Easy","Basic SELECT","","SELECT product_id, quantity_on_hand FROM inventory;"),
+  q(18,"List all products that are perishable (is_perishable = 1).","Easy","Filtering & WHERE","","SELECT * FROM products WHERE is_perishable = 1;"),
+  q(19,"Find all customers from Mumbai.","Easy","Filtering & WHERE","","SELECT * FROM customers WHERE city = 'Mumbai';"),
+  q(20,"Find all stores in Tier 1 cities.","Easy","Filtering & WHERE","","SELECT * FROM stores WHERE city_tier = 1;"),
+  q(21,"List all products with MRP greater than 500.","Easy","Filtering & WHERE","","SELECT product_name, mrp FROM products WHERE mrp > 500;"),
+  q(22,"Find all loyalty members in the customers table.","Easy","Filtering & WHERE","","SELECT * FROM customers WHERE loyalty_member = 1;"),
+  q(23,"List all sales orders that are returns (is_return = 1).","Easy","Filtering & WHERE","","SELECT * FROM sales_orders WHERE is_return = 1;"),
+  q(24,"Find all preferred vendors from the suppliers table.","Easy","Filtering & WHERE","","SELECT * FROM suppliers WHERE is_preferred_vendor = 1;"),
+  q(25,"List all products with cost_price less than 100.","Easy","Filtering & WHERE","","SELECT product_name, cost_price FROM products WHERE cost_price < 100;"),
+  q(26,"Find all registered customers (is_registered = 1).","Easy","Filtering & WHERE","","SELECT * FROM customers WHERE is_registered = 1;"),
+  q(27,"List all orders placed in 2024.","Easy","Filtering & WHERE","Use YEAR()","SELECT * FROM sales_orders WHERE YEAR(order_date) = 2024;"),
+  q(28,"Find all stores of type 'Hypermarket'.","Easy","Filtering & WHERE","","SELECT * FROM stores WHERE store_type = 'Hypermarket';"),
+  q(29,"List all products in the 'veg' category (veg_nonveg = 'Veg').","Easy","Filtering & WHERE","","SELECT * FROM products WHERE veg_nonveg = 'Veg';"),
+  q(30,"Find customers with avg_monthly_spend_inr greater than 5000.","Easy","Filtering & WHERE","","SELECT customer_name, avg_monthly_spend_inr FROM customers WHERE avg_monthly_spend_inr > 5000;"),
+  q(31,"List all suppliers with payment_days less than or equal to 30.","Easy","Filtering & WHERE","","SELECT supplier_name, payment_days FROM suppliers WHERE payment_days <= 30;"),
+  q(32,"Find all inventory items where quantity_on_hand is below reorder_point.","Easy","Filtering & WHERE","","SELECT * FROM inventory WHERE quantity_on_hand < reorder_point;"),
+  q(33,"List all orders with net_amount between 1000 and 5000.","Easy","Filtering & WHERE","Use BETWEEN","SELECT * FROM sales_orders WHERE net_amount BETWEEN 1000 AND 5000;"),
+  q(34,"Find all customers whose email ends with '@gmail.com'.","Easy","Filtering & WHERE","Use LIKE","SELECT * FROM customers WHERE email LIKE '%@gmail.com';"),
+  q(35,"List all products whose name contains 'Rice'.","Easy","Filtering & WHERE","Use LIKE","SELECT * FROM products WHERE product_name LIKE '%Rice%';"),
+  q(36,"Find all stores opened after 2020-01-01.","Easy","Filtering & WHERE","","SELECT * FROM stores WHERE opening_date > '2020-01-01';"),
+  q(37,"List all customers from either Delhi or Bangalore.","Easy","Filtering & WHERE","Use IN","SELECT * FROM customers WHERE city IN ('Delhi', 'Bangalore');"),
+  q(38,"Find all products where cost_price is NULL.","Easy","Filtering & WHERE","Use IS NULL","SELECT * FROM products WHERE cost_price IS NULL;"),
+  q(39,"List all sales_order_items with quantity greater than 5.","Easy","Filtering & WHERE","","SELECT * FROM sales_order_items WHERE quantity > 5;"),
+  q(40,"Find all customers who visit more than 4 times per month.","Easy","Filtering & WHERE","","SELECT * FROM customers WHERE visit_frequency_per_month > 4;"),
+
+  q(41,"Count the total number of customers.","Easy","Aggregation & GROUP BY","Use COUNT","SELECT COUNT(*) AS total_customers FROM customers;"),
+  q(42,"Find the total number of products.","Easy","Aggregation & GROUP BY","","SELECT COUNT(*) AS total_products FROM products;"),
+  q(43,"Calculate the average MRP of all products.","Easy","Aggregation & GROUP BY","Use AVG","SELECT AVG(mrp) AS avg_mrp FROM products;"),
+  q(44,"Find the maximum and minimum MRP in the products table.","Easy","Aggregation & GROUP BY","","SELECT MAX(mrp) AS max_mrp, MIN(mrp) AS min_mrp FROM products;"),
+  q(45,"Calculate the total net_amount from all sales orders.","Easy","Aggregation & GROUP BY","Use SUM","SELECT SUM(net_amount) AS total_revenue FROM sales_orders;"),
+  q(46,"Count the number of stores per state.","Easy","Aggregation & GROUP BY","Use GROUP BY","SELECT state, COUNT(*) AS store_count FROM stores GROUP BY state;"),
+  q(47,"Find the average MRP per category.","Easy","Aggregation & GROUP BY","","SELECT category_id, AVG(mrp) AS avg_mrp FROM products GROUP BY category_id;"),
+  q(48,"Count the number of customers per city.","Easy","Aggregation & GROUP BY","","SELECT city, COUNT(*) AS customer_count FROM customers GROUP BY city;"),
+  q(49,"Find the total quantity ordered per product.","Easy","Aggregation & GROUP BY","","SELECT product_id, SUM(quantity) AS total_qty FROM sales_order_items GROUP BY product_id;"),
+  q(50,"Calculate the total discount_amount per order.","Easy","Aggregation & GROUP BY","","SELECT order_id, SUM(discount_amount) AS total_discount FROM sales_order_items GROUP BY order_id;"),
+  q(51,"Count orders per channel.","Easy","Aggregation & GROUP BY","","SELECT channel_id, COUNT(*) AS order_count FROM sales_orders GROUP BY channel_id;"),
+  q(52,"Find the average annual_contract_value_lakh per supplier_type.","Easy","Aggregation & GROUP BY","","SELECT supplier_type, AVG(annual_contract_value_lakh) AS avg_contract FROM suppliers GROUP BY supplier_type;"),
+  q(53,"Count products per brand.","Easy","Aggregation & GROUP BY","","SELECT brand_id, COUNT(*) AS product_count FROM products GROUP BY brand_id;"),
+  q(54,"Find the maximum quantity_on_hand per store.","Easy","Aggregation & GROUP BY","","SELECT store_id, MAX(quantity_on_hand) AS max_qty FROM inventory GROUP BY store_id;"),
+  q(55,"Count orders per payment mode.","Easy","Aggregation & GROUP BY","","SELECT payment_mode_id, COUNT(*) AS order_count FROM sales_orders GROUP BY payment_mode_id;"),
+  q(56,"Find categories with more than 10 products.","Medium","Aggregation & GROUP BY","Use HAVING","SELECT category_id, COUNT(*) AS cnt FROM products GROUP BY category_id HAVING cnt > 10;"),
+  q(57,"List stores with total orders greater than 100.","Medium","Aggregation & GROUP BY","","SELECT store_id, COUNT(*) AS total_orders FROM sales_orders GROUP BY store_id HAVING total_orders > 100;"),
+  q(58,"Find the top 5 products by total quantity sold.","Medium","Aggregation & GROUP BY","Use ORDER BY + LIMIT","SELECT product_id, SUM(quantity) AS total_qty FROM sales_order_items GROUP BY product_id ORDER BY total_qty DESC LIMIT 5;"),
+  q(59,"Find brands with average product MRP above 300.","Medium","Aggregation & GROUP BY","","SELECT brand_id, AVG(mrp) AS avg_mrp FROM products GROUP BY brand_id HAVING avg_mrp > 300;"),
+  q(60,"Count distinct products sold per store.","Medium","Aggregation & GROUP BY","","SELECT so.store_id, COUNT(DISTINCT soi.product_id) AS distinct_products FROM sales_orders so JOIN sales_order_items soi ON so.order_id=soi.order_id GROUP BY so.store_id;"),
+
+  q(61,"Join sales_orders with stores to show store name for each order.","Easy","JOINs","Use INNER JOIN","SELECT so.order_number, s.store_name FROM sales_orders so JOIN stores s ON so.store_id = s.store_id;"),
+  q(62,"Join products with brands to show brand name alongside product name.","Easy","JOINs","","SELECT p.product_name, b.brand_name FROM products p JOIN brands b ON p.brand_id = b.brand_id;"),
+  q(63,"Join sales_order_items with products to show product name and quantity.","Easy","JOINs","","SELECT soi.order_id, p.product_name, soi.quantity FROM sales_order_items soi JOIN products p ON soi.product_id = p.product_id;"),
+  q(64,"Show customer name for each sales order.","Easy","JOINs","","SELECT so.order_number, c.customer_name FROM sales_orders so JOIN customers c ON so.customer_id = c.customer_id;"),
+  q(65,"Join products with categories to show category name.","Easy","JOINs","","SELECT p.product_name, c.category_name FROM products p JOIN categories c ON p.category_id = c.category_id;"),
+  q(66,"Show payment mode name for each sales order.","Easy","JOINs","","SELECT so.order_number, lpm.payment_mode_name FROM sales_orders so JOIN lookup_payment_mode lpm ON so.payment_mode_id = lpm.payment_mode_id;"),
+  q(67,"Show order status name for each sales order.","Easy","JOINs","","SELECT so.order_number, los.status_name FROM sales_orders so JOIN lookup_order_status los ON so.status_id = los.status_id;"),
+  q(68,"Show channel name for each sales order.","Easy","JOINs","","SELECT so.order_number, lc.channel_name FROM sales_orders so JOIN lookup_channel lc ON so.channel_id = lc.channel_id;"),
+  q(69,"List all products with their primary supplier name.","Medium","JOINs","Filter is_primary=1","SELECT p.product_name, s.supplier_name FROM products p JOIN product_suppliers ps ON p.product_id=ps.product_id AND ps.is_primary=1 JOIN suppliers s ON ps.supplier_id=s.supplier_id;"),
+  q(70,"Find all products that have NO supplier.","Medium","JOINs","Use LEFT JOIN + IS NULL","SELECT p.product_name FROM products p LEFT JOIN product_suppliers ps ON p.product_id=ps.product_id WHERE ps.supplier_id IS NULL;"),
+  q(71,"Show products with their inventory levels at each store.","Medium","JOINs","","SELECT p.product_name, s.store_name, i.quantity_on_hand FROM products p JOIN inventory i ON p.product_id=i.product_id JOIN stores s ON i.store_id=s.store_id;"),
+  q(72,"Find customers who have never placed an order.","Medium","JOINs","Use LEFT JOIN","SELECT c.customer_name FROM customers c LEFT JOIN sales_orders so ON c.customer_id=so.customer_id WHERE so.order_id IS NULL;"),
+  q(73,"List all stores with the total number of orders placed (include stores with 0 orders).","Medium","JOINs","Use LEFT JOIN","SELECT s.store_name, COUNT(so.order_id) AS order_count FROM stores s LEFT JOIN sales_orders so ON s.store_id=so.store_id GROUP BY s.store_id, s.store_name;"),
+  q(74,"Show the full order detail: order number, customer, store, product, quantity, and net price.","Medium","JOINs","Multi-table join","SELECT so.order_number, c.customer_name, st.store_name, p.product_name, soi.quantity, soi.net_price FROM sales_orders so JOIN customers c ON so.customer_id=c.customer_id JOIN stores st ON so.store_id=st.store_id JOIN sales_order_items soi ON so.order_id=soi.order_id JOIN products p ON soi.product_id=p.product_id;"),
+  q(75,"Find products sold in stores of type 'Supermarket'.","Medium","JOINs","","SELECT DISTINCT p.product_name FROM sales_orders so JOIN stores s ON so.store_id=s.store_id AND s.store_type='Supermarket' JOIN sales_order_items soi ON so.order_id=soi.order_id JOIN products p ON soi.product_id=p.product_id;"),
+  q(76,"Find brand names that have products with gross_margin_pct above 40%.","Medium","JOINs","","SELECT DISTINCT b.brand_name FROM products p JOIN brands b ON p.brand_id=b.brand_id WHERE p.gross_margin_pct > 40;"),
+  q(77,"List each customer's total spend (sum of net_amount).","Medium","JOINs","","SELECT c.customer_name, SUM(so.net_amount) AS total_spend FROM customers c JOIN sales_orders so ON c.customer_id=so.customer_id GROUP BY c.customer_id, c.customer_name;"),
+  q(78,"Show brand name with count of unique categories their products span.","Medium","JOINs","","SELECT b.brand_name, COUNT(DISTINCT p.category_id) AS cat_count FROM brands b JOIN products p ON b.brand_id=p.brand_id GROUP BY b.brand_id, b.brand_name;"),
+  q(79,"Find orders that included perishable products.","Medium","JOINs","","SELECT DISTINCT so.order_number FROM sales_orders so JOIN sales_order_items soi ON so.order_id=soi.order_id JOIN products p ON soi.product_id=p.product_id WHERE p.is_perishable=1;"),
+  q(80,"List all supplier names that supply more than 5 products.","Medium","JOINs","","SELECT s.supplier_name, COUNT(ps.product_id) AS product_count FROM suppliers s JOIN product_suppliers ps ON s.supplier_id=ps.supplier_id GROUP BY s.supplier_id, s.supplier_name HAVING product_count > 5;"),
+
+  q(81,"Find all products whose MRP is above the average MRP.","Medium","Subqueries","Scalar subquery","SELECT product_name, mrp FROM products WHERE mrp > (SELECT AVG(mrp) FROM products);"),
+  q(82,"Find the customer who placed the highest single order (by net_amount).","Medium","Subqueries","","SELECT customer_name FROM customers WHERE customer_id = (SELECT customer_id FROM sales_orders ORDER BY net_amount DESC LIMIT 1);"),
+  q(83,"List products that have never been ordered.","Medium","Subqueries","Use NOT IN","SELECT product_name FROM products WHERE product_id NOT IN (SELECT DISTINCT product_id FROM sales_order_items);"),
+  q(84,"Find stores where the average order value is above the overall average.","Medium","Subqueries","","SELECT store_id, AVG(net_amount) AS avg_order FROM sales_orders GROUP BY store_id HAVING avg_order > (SELECT AVG(net_amount) FROM sales_orders);"),
+  q(85,"Find all customers whose avg_monthly_spend_inr is above the city average.","Hard","Subqueries","Correlated subquery","SELECT c1.customer_name, c1.city, c1.avg_monthly_spend_inr FROM customers c1 WHERE c1.avg_monthly_spend_inr > (SELECT AVG(c2.avg_monthly_spend_inr) FROM customers c2 WHERE c2.city = c1.city);"),
+  q(86,"List brands that have at least one product ordered more than 100 times total.","Hard","Subqueries","","SELECT DISTINCT b.brand_name FROM brands b JOIN products p ON b.brand_id=p.brand_id WHERE p.product_id IN (SELECT product_id FROM sales_order_items GROUP BY product_id HAVING SUM(quantity) > 100);"),
+  q(87,"Find the most expensive product in each category using a subquery.","Hard","Subqueries","","SELECT product_name, category_id, mrp FROM products p WHERE mrp = (SELECT MAX(mrp) FROM products p2 WHERE p2.category_id = p.category_id);"),
+  q(88,"Find customers who have placed orders in all three channels (In-store, Online, Mobile).","Hard","Subqueries","","SELECT customer_id FROM sales_orders WHERE channel_id IN (SELECT channel_id FROM lookup_channel WHERE channel_name IN ('In-store','Online','Mobile')) GROUP BY customer_id HAVING COUNT(DISTINCT channel_id) = 3;"),
+  q(89,"List products whose cost_price is above the average cost_price of their brand.","Hard","Subqueries","Correlated","SELECT p.product_name, p.brand_id, p.cost_price FROM products p WHERE p.cost_price > (SELECT AVG(p2.cost_price) FROM products p2 WHERE p2.brand_id = p.brand_id);"),
+  q(90,"Find stores that have sold every product in a given category (category_id=1).","Expert","Subqueries","","SELECT store_id FROM sales_orders so JOIN sales_order_items soi ON so.order_id=soi.order_id JOIN products p ON soi.product_id=p.product_id AND p.category_id=1 GROUP BY store_id HAVING COUNT(DISTINCT p.product_id) = (SELECT COUNT(*) FROM products WHERE category_id=1);"),
+  q(91,"Find the second highest MRP product.","Medium","Subqueries","","SELECT MAX(mrp) AS second_highest FROM products WHERE mrp < (SELECT MAX(mrp) FROM products);"),
+  q(92,"List all products where quantity_on_hand in any store is below reorder_point.","Medium","Subqueries","","SELECT DISTINCT product_id FROM inventory WHERE quantity_on_hand < reorder_point;"),
+  q(93,"Find customers who placed orders only via 'Online' channel.","Hard","Subqueries","","SELECT customer_id FROM sales_orders GROUP BY customer_id HAVING COUNT(DISTINCT channel_id) = 1 AND MAX(channel_id) = (SELECT channel_id FROM lookup_channel WHERE channel_name='Online');"),
+  q(94,"List products that are sold in more than half of all stores.","Hard","Subqueries","","SELECT product_id FROM (SELECT product_id, COUNT(DISTINCT store_id) AS store_count FROM sales_orders so JOIN sales_order_items soi ON so.order_id=soi.order_id GROUP BY product_id) t WHERE store_count > (SELECT COUNT(*)/2 FROM stores);"),
+  q(95,"Find the top-selling product in each store.","Hard","Subqueries","","SELECT store_id, product_id, total_qty FROM (SELECT so.store_id, soi.product_id, SUM(soi.quantity) AS total_qty, RANK() OVER (PARTITION BY so.store_id ORDER BY SUM(soi.quantity) DESC) AS rnk FROM sales_orders so JOIN sales_order_items soi ON so.order_id=soi.order_id GROUP BY so.store_id, soi.product_id) t WHERE rnk=1;"),
+  q(96,"Find all orders where the discount_amount is above average discount for that store.","Hard","Subqueries","","SELECT so.order_id, so.store_id, so.discount_amount FROM sales_orders so WHERE so.discount_amount > (SELECT AVG(discount_amount) FROM sales_orders so2 WHERE so2.store_id = so.store_id);"),
+  q(97,"List suppliers who supply products to more stores than average.","Expert","Subqueries","","SELECT s.supplier_name FROM suppliers s JOIN product_suppliers ps ON s.supplier_id=ps.supplier_id JOIN inventory i ON ps.product_id=i.product_id GROUP BY s.supplier_id, s.supplier_name HAVING COUNT(DISTINCT i.store_id) > (SELECT AVG(cnt) FROM (SELECT supplier_id, COUNT(DISTINCT store_id) cnt FROM product_suppliers JOIN inventory USING(product_id) GROUP BY supplier_id) x);"),
+  q(98,"Find customers who placed more orders than the average number of orders per customer.","Medium","Subqueries","","SELECT customer_id, COUNT(*) AS order_count FROM sales_orders GROUP BY customer_id HAVING order_count > (SELECT AVG(c) FROM (SELECT COUNT(*) c FROM sales_orders GROUP BY customer_id) t);"),
+  q(99,"Find products where the inventory at any single store exceeds 1000 units.","Easy","Subqueries","","SELECT DISTINCT product_id FROM inventory WHERE quantity_on_hand > 1000;"),
+  q(100,"Find all categories that have no products.","Easy","Subqueries","","SELECT c.category_name FROM categories c WHERE c.category_id NOT IN (SELECT DISTINCT category_id FROM products WHERE category_id IS NOT NULL);"),
+
+  q(101,"Assign a row number to each customer ordered by registration_date.","Medium","Window Functions","Use ROW_NUMBER","SELECT customer_name, registration_date, ROW_NUMBER() OVER (ORDER BY registration_date) AS row_num FROM customers;"),
+  q(102,"Rank products by MRP within each category.","Medium","Window Functions","Use RANK()","SELECT product_name, category_id, mrp, RANK() OVER (PARTITION BY category_id ORDER BY mrp DESC) AS price_rank FROM products;"),
+  q(103,"Calculate the running total of net_amount ordered by order_date.","Medium","Window Functions","Use SUM() OVER","SELECT order_id, order_date, net_amount, SUM(net_amount) OVER (ORDER BY order_date) AS running_total FROM sales_orders;"),
+  q(104,"Find the difference in net_amount between consecutive orders for each customer.","Hard","Window Functions","Use LAG()","SELECT order_id, customer_id, net_amount, net_amount - LAG(net_amount) OVER (PARTITION BY customer_id ORDER BY order_date) AS diff_from_prev FROM sales_orders;"),
+  q(105,"Calculate the 7-day moving average of daily sales.","Hard","Window Functions","Use AVG() with ROWS BETWEEN","SELECT order_date, daily_total, AVG(daily_total) OVER (ORDER BY order_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS moving_avg_7d FROM (SELECT DATE(order_date) AS order_date, SUM(net_amount) AS daily_total FROM sales_orders GROUP BY DATE(order_date)) d;"),
+  q(106,"Find the top 3 customers by total spend using DENSE_RANK.","Medium","Window Functions","","SELECT customer_id, total_spend, DENSE_RANK() OVER (ORDER BY total_spend DESC) AS spend_rank FROM (SELECT customer_id, SUM(net_amount) AS total_spend FROM sales_orders GROUP BY customer_id) t LIMIT 3;"),
+  q(107,"Show the next order date for each customer using LEAD.","Medium","Window Functions","Use LEAD()","SELECT order_id, customer_id, order_date, LEAD(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS next_order_date FROM sales_orders;"),
+  q(108,"Calculate each store's revenue as a percentage of total revenue.","Medium","Window Functions","","SELECT store_id, store_rev, ROUND(store_rev * 100.0 / SUM(store_rev) OVER (), 2) AS pct_of_total FROM (SELECT store_id, SUM(net_amount) AS store_rev FROM sales_orders GROUP BY store_id) t;"),
+  q(109,"Find the first order date for each customer using FIRST_VALUE.","Medium","Window Functions","","SELECT DISTINCT customer_id, FIRST_VALUE(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS first_order_date FROM sales_orders;"),
+  q(110,"Rank stores by revenue within each state.","Medium","Window Functions","","SELECT s.state, s.store_name, SUM(so.net_amount) AS revenue, RANK() OVER (PARTITION BY s.state ORDER BY SUM(so.net_amount) DESC) AS state_rank FROM stores s JOIN sales_orders so ON s.store_id=so.store_id GROUP BY s.store_id, s.state, s.store_name;"),
+  q(111,"Divide customers into 4 quartiles by avg_monthly_spend_inr.","Medium","Window Functions","Use NTILE","SELECT customer_name, avg_monthly_spend_inr, NTILE(4) OVER (ORDER BY avg_monthly_spend_inr) AS spend_quartile FROM customers WHERE avg_monthly_spend_inr IS NOT NULL;"),
+  q(112,"Calculate the cumulative count of orders per month.","Medium","Window Functions","","SELECT order_month, monthly_orders, SUM(monthly_orders) OVER (ORDER BY order_month) AS cumulative_orders FROM (SELECT DATE_FORMAT(order_date,'%Y-%m') AS order_month, COUNT(*) AS monthly_orders FROM sales_orders GROUP BY order_month) t;"),
+  q(113,"Find the product with the highest net_price in each order.","Medium","Window Functions","","SELECT order_id, product_id, net_price FROM (SELECT order_id, product_id, net_price, RANK() OVER (PARTITION BY order_id ORDER BY net_price DESC) AS rnk FROM sales_order_items) t WHERE rnk=1;"),
+  q(114,"Calculate the ratio of each product's sales to the store's best-selling product.","Hard","Window Functions","","SELECT store_id, product_id, total_qty, total_qty * 1.0 / MAX(total_qty) OVER (PARTITION BY store_id) AS ratio_to_best FROM (SELECT so.store_id, soi.product_id, SUM(soi.quantity) AS total_qty FROM sales_orders so JOIN sales_order_items soi ON so.order_id=soi.order_id GROUP BY so.store_id, soi.product_id) t;"),
+  q(115,"Find all customers who placed an order in the same month as their registration.","Hard","Window Functions","","SELECT DISTINCT c.customer_name FROM customers c JOIN sales_orders so ON c.customer_id=so.customer_id WHERE DATE_FORMAT(so.order_date,'%Y-%m') = DATE_FORMAT(c.registration_date,'%Y-%m');"),
+  q(116,"Calculate month-over-month revenue growth rate.","Hard","Window Functions","","SELECT order_month, monthly_rev, ROUND((monthly_rev - LAG(monthly_rev) OVER (ORDER BY order_month)) * 100.0 / LAG(monthly_rev) OVER (ORDER BY order_month), 2) AS mom_growth_pct FROM (SELECT DATE_FORMAT(order_date,'%Y-%m') AS order_month, SUM(net_amount) AS monthly_rev FROM sales_orders GROUP BY order_month) t;"),
+  q(117,"Find the median MRP of products using PERCENTILE_CONT approach.","Hard","Window Functions","Use NTILE approximation","SELECT AVG(mrp) AS median_mrp FROM (SELECT mrp, NTILE(2) OVER (ORDER BY mrp) AS half FROM products) t WHERE half=1;"),
+  q(118,"Show the last 3 orders for each customer.","Hard","Window Functions","","SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date DESC) AS rn FROM sales_orders) t WHERE rn <= 3;"),
+  q(119,"Find customers whose order frequency increased compared to the previous month.","Hard","Window Functions","","SELECT customer_id, order_month, orders_this_month, orders_this_month - LAG(orders_this_month) OVER (PARTITION BY customer_id ORDER BY order_month) AS change FROM (SELECT customer_id, DATE_FORMAT(order_date,'%Y-%m') AS order_month, COUNT(*) AS orders_this_month FROM sales_orders GROUP BY customer_id, order_month) t HAVING change > 0;"),
+  q(120,"Calculate the Z-score of net_amount for each order (per store).","Expert","Window Functions","","SELECT order_id, store_id, net_amount, (net_amount - AVG(net_amount) OVER (PARTITION BY store_id)) / NULLIF(STDDEV(net_amount) OVER (PARTITION BY store_id),0) AS z_score FROM sales_orders;"),
+
+  q(121,"Use a CTE to find the total revenue per store and then find stores above average.","Medium","CTEs","Use WITH","WITH store_rev AS (SELECT store_id, SUM(net_amount) AS total_rev FROM sales_orders GROUP BY store_id) SELECT store_id, total_rev FROM store_rev WHERE total_rev > (SELECT AVG(total_rev) FROM store_rev);"),
+  q(122,"Use a CTE to find the top 10 products by total quantity sold.","Medium","CTEs","","WITH product_sales AS (SELECT product_id, SUM(quantity) AS total_qty FROM sales_order_items GROUP BY product_id) SELECT product_id, total_qty FROM product_sales ORDER BY total_qty DESC LIMIT 10;"),
+  q(123,"Write a recursive CTE to traverse the categories hierarchy.","Hard","CTEs","Use recursive CTE","WITH RECURSIVE cat_tree AS (SELECT category_id, category_name, parent_category_id, 1 AS depth FROM categories WHERE parent_category_id IS NULL UNION ALL SELECT c.category_id, c.category_name, c.parent_category_id, ct.depth+1 FROM categories c JOIN cat_tree ct ON c.parent_category_id=ct.category_id) SELECT * FROM cat_tree;"),
+  q(124,"Use a CTE to find customers with more than 5 orders, then join with customer details.","Medium","CTEs","","WITH frequent_buyers AS (SELECT customer_id, COUNT(*) AS order_count FROM sales_orders GROUP BY customer_id HAVING order_count > 5) SELECT c.customer_name, fb.order_count FROM customers c JOIN frequent_buyers fb ON c.customer_id=fb.customer_id;"),
+  q(125,"Use multiple CTEs to calculate the revenue contribution of each category.","Hard","CTEs","","WITH cat_sales AS (SELECT p.category_id, SUM(soi.net_price * soi.quantity) AS cat_rev FROM sales_order_items soi JOIN products p ON soi.product_id=p.product_id GROUP BY p.category_id), total AS (SELECT SUM(cat_rev) AS grand_total FROM cat_sales) SELECT cat_sales.category_id, cat_rev, ROUND(cat_rev*100/grand_total,2) AS pct FROM cat_sales, total;"),
+  q(126,"Use a CTE to find the most recent order for each customer.","Medium","CTEs","","WITH latest_orders AS (SELECT customer_id, MAX(order_date) AS last_order_date FROM sales_orders GROUP BY customer_id) SELECT c.customer_name, lo.last_order_date FROM customers c JOIN latest_orders lo ON c.customer_id=lo.customer_id;"),
+  q(127,"Use a CTE to identify stores with declining revenue (last month less than previous month).","Hard","CTEs","","WITH monthly AS (SELECT store_id, DATE_FORMAT(order_date,'%Y-%m') AS mo, SUM(net_amount) AS rev FROM sales_orders GROUP BY store_id, mo), ranked AS (SELECT *, LAG(rev) OVER (PARTITION BY store_id ORDER BY mo) AS prev_rev FROM monthly) SELECT store_id, mo, rev, prev_rev FROM ranked WHERE rev < prev_rev;"),
+  q(128,"Use a CTE to find the customer lifetime value (total spend) and rank customers.","Medium","CTEs","","WITH clv AS (SELECT customer_id, SUM(net_amount) AS lifetime_value FROM sales_orders GROUP BY customer_id) SELECT customer_id, lifetime_value, RANK() OVER (ORDER BY lifetime_value DESC) AS clv_rank FROM clv;"),
+  q(129,"Use a CTE chain to: 1) find products with above-avg margin, 2) find orders containing those products.","Hard","CTEs","","WITH high_margin AS (SELECT product_id FROM products WHERE gross_margin_pct > (SELECT AVG(gross_margin_pct) FROM products)), flagged_orders AS (SELECT DISTINCT order_id FROM sales_order_items WHERE product_id IN (SELECT product_id FROM high_margin)) SELECT * FROM sales_orders WHERE order_id IN (SELECT order_id FROM flagged_orders);"),
+  q(130,"Use a CTE to calculate inventory turnover per product (units sold / avg inventory).","Hard","CTEs","","WITH sold AS (SELECT product_id, SUM(quantity) AS units_sold FROM sales_order_items GROUP BY product_id), avg_inv AS (SELECT product_id, AVG(quantity_on_hand) AS avg_stock FROM inventory GROUP BY product_id) SELECT s.product_id, s.units_sold, ai.avg_stock, ROUND(s.units_sold / NULLIF(ai.avg_stock,0),2) AS turnover_ratio FROM sold s JOIN avg_inv ai ON s.product_id=ai.product_id;"),
+  q(131,"Use a CTE to find the basket size (avg items per order) per channel.","Medium","CTEs","","WITH basket AS (SELECT so.channel_id, so.order_id, COUNT(soi.order_item_id) AS items FROM sales_orders so JOIN sales_order_items soi ON so.order_id=soi.order_id GROUP BY so.channel_id, so.order_id) SELECT channel_id, ROUND(AVG(items),2) AS avg_basket_size FROM basket GROUP BY channel_id;"),
+  q(132,"Use a CTE to find the day of week with highest average sales.","Medium","CTEs","","WITH daily AS (SELECT DAYNAME(order_date) AS dow, AVG(net_amount) AS avg_sale FROM sales_orders GROUP BY dow) SELECT dow, avg_sale FROM daily ORDER BY avg_sale DESC LIMIT 1;"),
+  q(133,"Use a recursive CTE to generate a number series from 1 to 100.","Medium","CTEs","","WITH RECURSIVE nums AS (SELECT 1 AS n UNION ALL SELECT n+1 FROM nums WHERE n < 100) SELECT n FROM nums;"),
+  q(134,"Use a CTE to find churned customers (no orders in last 6 months).","Medium","CTEs","","WITH last_order AS (SELECT customer_id, MAX(order_date) AS last_dt FROM sales_orders GROUP BY customer_id) SELECT c.customer_name, lo.last_dt FROM customers c JOIN last_order lo ON c.customer_id=lo.customer_id WHERE lo.last_dt < DATE_SUB(NOW(), INTERVAL 6 MONTH);"),
+  q(135,"Use a CTE to build a product affinity matrix (products bought together).","Expert","CTEs","","WITH pairs AS (SELECT a.product_id AS p1, b.product_id AS p2, COUNT(*) AS co_occurrences FROM sales_order_items a JOIN sales_order_items b ON a.order_id=b.order_id AND a.product_id < b.product_id GROUP BY p1, p2) SELECT p1, p2, co_occurrences FROM pairs ORDER BY co_occurrences DESC LIMIT 20;"),
+  q(136,"Use a CTE to calculate the 30-day rolling revenue for each store.","Hard","CTEs","","WITH daily AS (SELECT store_id, DATE(order_date) AS dt, SUM(net_amount) AS rev FROM sales_orders GROUP BY store_id, dt) SELECT store_id, dt, SUM(rev) OVER (PARTITION BY store_id ORDER BY dt ROWS BETWEEN 29 PRECEDING AND CURRENT ROW) AS rolling_30d FROM daily;"),
+  q(137,"Use a CTE to find products with consistent sales across all months in a year.","Hard","CTEs","","WITH monthly_sales AS (SELECT product_id, DATE_FORMAT(order_date,'%Y-%m') AS mo FROM sales_orders so JOIN sales_order_items soi ON so.order_id=soi.order_id WHERE YEAR(order_date)=2024 GROUP BY product_id, mo) SELECT product_id, COUNT(DISTINCT mo) AS months_sold FROM monthly_sales GROUP BY product_id HAVING months_sold = 12;"),
+  q(138,"Use a CTE to find the highest-grossing product per brand.","Medium","CTEs","","WITH brand_product_rev AS (SELECT p.brand_id, p.product_id, SUM(soi.net_price*soi.quantity) AS rev FROM products p JOIN sales_order_items soi ON p.product_id=soi.product_id GROUP BY p.brand_id, p.product_id), ranked AS (SELECT *, RANK() OVER (PARTITION BY brand_id ORDER BY rev DESC) AS rnk FROM brand_product_rev) SELECT brand_id, product_id, rev FROM ranked WHERE rnk=1;"),
+  q(139,"Use a CTE to identify the most loyal customers (orders in 6+ consecutive months).","Expert","CTEs","","WITH monthly AS (SELECT customer_id, DATE_FORMAT(order_date,'%Y-%m') AS mo FROM sales_orders GROUP BY customer_id, mo), numbered AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY mo) AS rn, DATE_FORMAT(DATE_SUB(STR_TO_DATE(CONCAT(mo,'-01'),'%Y-%m-%d'), INTERVAL ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY mo) MONTH),'%Y-%m') AS grp FROM monthly) SELECT customer_id, COUNT(*) AS consec_months FROM numbered GROUP BY customer_id, grp HAVING consec_months >= 6;"),
+  q(140,"Use a CTE to compute the Pareto (80/20) analysis: which products drive 80% of revenue.","Expert","CTEs","","WITH prod_rev AS (SELECT product_id, SUM(net_price*quantity) AS rev FROM sales_order_items GROUP BY product_id), ranked AS (SELECT *, SUM(rev) OVER (ORDER BY rev DESC) AS cum_rev, SUM(rev) OVER () AS total_rev FROM prod_rev) SELECT product_id, rev, ROUND(cum_rev*100/total_rev,2) AS cum_pct FROM ranked WHERE cum_rev <= total_rev*0.8 OR cum_rev - rev < total_rev*0.8;"),
+
+  q(141,"Insert a new brand 'FreshFarm' into the brands table.","Easy","Data Modification","Use INSERT","INSERT INTO brands (brand_name) VALUES ('FreshFarm');"),
+  q(142,"Update the phone number for customer_id = 101.","Easy","Data Modification","Use UPDATE","UPDATE customers SET phone = '9876543210' WHERE customer_id = 101;"),
+  q(143,"Delete all orders where is_return = 1 and order_date is older than 2 years.","Medium","Data Modification","Use DELETE with DATE_SUB","DELETE FROM sales_orders WHERE is_return=1 AND order_date < DATE_SUB(NOW(), INTERVAL 2 YEAR);"),
+  q(144,"Insert multiple new lookup_channel records in a single statement.","Easy","Data Modification","Use multi-row INSERT","INSERT INTO lookup_channel (channel_name) VALUES ('WhatsApp'), ('Kiosk');"),
+  q(145,"Update all products: increase MRP by 10% for perishable items.","Medium","Data Modification","","UPDATE products SET mrp = mrp * 1.10 WHERE is_perishable = 1;"),
+  q(146,"Set loyalty_member = 1 for all customers with avg_monthly_spend_inr > 10000.","Medium","Data Modification","","UPDATE customers SET loyalty_member = 1 WHERE avg_monthly_spend_inr > 10000;"),
+  q(147,"Insert a new store record with all required fields.","Easy","Data Modification","","INSERT INTO stores (store_code, store_name, city, state, city_tier, store_type, opening_date) VALUES ('STR999','Test Store','Mumbai','Maharashtra',1,'Supermarket','2025-01-01');"),
+  q(148,"Update the reorder_point to 20 for all products in a specific category.","Medium","Data Modification","","UPDATE inventory SET reorder_point = 20 WHERE product_id IN (SELECT product_id FROM products WHERE category_id = 5);"),
+  q(149,"Delete all inventory records for stores that have been closed (not in stores table).","Medium","Data Modification","","DELETE FROM inventory WHERE store_id NOT IN (SELECT store_id FROM stores);"),
+  q(150,"Use INSERT ... SELECT to copy all customers from Maharashtra into a new archive table (assume archive_customers has same structure).","Medium","Data Modification","","INSERT INTO archive_customers SELECT * FROM customers WHERE state = 'Maharashtra';"),
+  q(151,"Update sales_orders: set status_id=5 (Cancelled) for all orders where the customer no longer exists.","Medium","Data Modification","","UPDATE sales_orders SET status_id=5 WHERE customer_id NOT IN (SELECT customer_id FROM customers);"),
+  q(152,"Add a new column 'loyalty_tier' VARCHAR(20) to the customers table.","Easy","Schema & DDL","Use ALTER TABLE","ALTER TABLE customers ADD COLUMN loyalty_tier VARCHAR(20) DEFAULT NULL;"),
+  q(153,"Create an index on sales_orders(order_date, store_id).","Easy","Schema & DDL","USE CREATE INDEX","CREATE INDEX idx_date_store ON sales_orders(order_date, store_id);"),
+  q(154,"Create a VIEW named v_order_summary showing order_number, customer_name, store_name, and net_amount.","Medium","Schema & DDL","Use CREATE VIEW","CREATE VIEW v_order_summary AS SELECT so.order_number, c.customer_name, s.store_name, so.net_amount FROM sales_orders so JOIN customers c ON so.customer_id=c.customer_id JOIN stores s ON so.store_id=s.store_id;"),
+  q(155,"Write the DDL to create a new table 'customer_segments' with customer_id, segment_name, and assigned_date.","Easy","Schema & DDL","Use CREATE TABLE","CREATE TABLE customer_segments (segment_id INT AUTO_INCREMENT PRIMARY KEY, customer_id INT NOT NULL, segment_name VARCHAR(50), assigned_date DATE, FOREIGN KEY (customer_id) REFERENCES customers(customer_id));"),
+  q(156,"Drop the index idx_code from the customers table.","Easy","Schema & DDL","Use DROP INDEX","DROP INDEX idx_code ON customers;"),
+  q(157,"Rename the column 'city_tier' to 'metro_tier' in the stores table.","Easy","Schema & DDL","Use ALTER TABLE ... RENAME COLUMN","ALTER TABLE stores RENAME COLUMN city_tier TO metro_tier;"),
+  q(158,"Add a CHECK constraint to ensure mrp > 0 on the products table.","Medium","Schema & DDL","Use ALTER TABLE ... ADD CONSTRAINT","ALTER TABLE products ADD CONSTRAINT chk_mrp_positive CHECK (mrp > 0);"),
+  q(159,"Create a trigger that updates the updated_at timestamp on the customers table before each UPDATE.","Hard","Schema & DDL","Use CREATE TRIGGER","CREATE TRIGGER trg_customers_updated BEFORE UPDATE ON customers FOR EACH ROW SET NEW.updated_at = CURRENT_TIMESTAMP;"),
+  q(160,"Write a stored procedure to get total revenue for a given store_id.","Hard","Schema & DDL","Use CREATE PROCEDURE","CREATE PROCEDURE GetStoreRevenue(IN p_store_id INT) BEGIN SELECT store_id, SUM(net_amount) AS total_revenue FROM sales_orders WHERE store_id = p_store_id; END;"),
+
+  q(161,"Find the month with the highest total revenue.","Medium","Advanced Analytics","","SELECT DATE_FORMAT(order_date,'%Y-%m') AS month, SUM(net_amount) AS revenue FROM sales_orders GROUP BY month ORDER BY revenue DESC LIMIT 1;"),
+  q(162,"Calculate the customer retention rate between two consecutive months.","Expert","Advanced Analytics","","WITH m1 AS (SELECT DISTINCT customer_id FROM sales_orders WHERE DATE_FORMAT(order_date,'%Y-%m')='2024-01'), m2 AS (SELECT DISTINCT customer_id FROM sales_orders WHERE DATE_FORMAT(order_date,'%Y-%m')='2024-02') SELECT ROUND(COUNT(m2.customer_id)*100.0/COUNT(m1.customer_id),2) AS retention_pct FROM m1 LEFT JOIN m2 ON m1.customer_id=m2.customer_id;"),
+  q(163,"Calculate the Average Order Value (AOV) per city tier.","Medium","Advanced Analytics","","SELECT s.city_tier, ROUND(AVG(so.net_amount),2) AS aov FROM sales_orders so JOIN stores s ON so.store_id=s.store_id GROUP BY s.city_tier ORDER BY s.city_tier;"),
+  q(164,"Find the peak sales hour of the day.","Medium","Advanced Analytics","","SELECT HOUR(order_date) AS hour, COUNT(*) AS order_count, SUM(net_amount) AS revenue FROM sales_orders GROUP BY hour ORDER BY revenue DESC LIMIT 1;"),
+  q(165,"Identify the most common product basket (top 3 products bought together).","Expert","Advanced Analytics","","WITH pairs AS (SELECT a.product_id AS p1, b.product_id AS p2, c.product_id AS p3, COUNT(*) AS freq FROM sales_order_items a JOIN sales_order_items b ON a.order_id=b.order_id AND a.product_id<b.product_id JOIN sales_order_items c ON b.order_id=c.order_id AND b.product_id<c.product_id GROUP BY p1,p2,p3) SELECT p1,p2,p3,freq FROM pairs ORDER BY freq DESC LIMIT 3;"),
+  q(166,"Calculate the Net Promoter Score proxy: % of customers with >4 visits/month minus % with <2.","Hard","Advanced Analytics","","SELECT ROUND(SUM(CASE WHEN visit_frequency_per_month > 4 THEN 1 ELSE 0 END)*100.0/COUNT(*) - SUM(CASE WHEN visit_frequency_per_month < 2 THEN 1 ELSE 0 END)*100.0/COUNT(*), 2) AS nps_proxy FROM customers;"),
+  q(167,"Find the price elasticity proxy: correlation between discount_percent and quantity sold.","Expert","Advanced Analytics","","SELECT (COUNT(*)*SUM(discount_percent*quantity) - SUM(discount_percent)*SUM(quantity)) / SQRT((COUNT(*)*SUM(discount_percent*discount_percent) - SUM(discount_percent)*SUM(discount_percent))*(COUNT(*)*SUM(quantity*quantity)-SUM(quantity)*SUM(quantity))) AS correlation FROM sales_order_items;"),
+  q(168,"Calculate year-over-year (YoY) revenue growth by category.","Hard","Advanced Analytics","","SELECT p.category_id, YEAR(so.order_date) AS yr, SUM(soi.net_price*soi.quantity) AS rev FROM sales_orders so JOIN sales_order_items soi ON so.order_id=soi.order_id JOIN products p ON soi.product_id=p.product_id GROUP BY p.category_id, yr ORDER BY p.category_id, yr;"),
+  q(169,"Find the cohort revenue: for each customer registration month, total revenue in month 1, 2, 3 after registration.","Expert","Advanced Analytics","","WITH cohort AS (SELECT c.customer_id, DATE_FORMAT(c.registration_date,'%Y-%m') AS cohort_month, DATE_FORMAT(so.order_date,'%Y-%m') AS order_month, so.net_amount FROM customers c JOIN sales_orders so ON c.customer_id=so.customer_id), numbered AS (SELECT *, PERIOD_DIFF(EXTRACT(YEAR_MONTH FROM STR_TO_DATE(CONCAT(order_month,'-01'),'%Y-%m-%d')), EXTRACT(YEAR_MONTH FROM STR_TO_DATE(CONCAT(cohort_month,'-01'),'%Y-%m-%d'))) AS months_since FROM cohort) SELECT cohort_month, months_since, SUM(net_amount) AS revenue FROM numbered WHERE months_since BETWEEN 0 AND 2 GROUP BY cohort_month, months_since;"),
+  q(170,"Build a product recommendation query: for each product, find the top 3 products most frequently bought with it.","Expert","Advanced Analytics","","WITH co AS (SELECT a.product_id AS base, b.product_id AS paired, COUNT(*) AS freq FROM sales_order_items a JOIN sales_order_items b ON a.order_id=b.order_id AND a.product_id<>b.product_id GROUP BY base, paired), ranked AS (SELECT *, RANK() OVER (PARTITION BY base ORDER BY freq DESC) AS rnk FROM co) SELECT base AS product_id, paired AS recommended_product_id, freq FROM ranked WHERE rnk<=3;"),
+  q(171,"Find the supplier with the best on-time delivery proxy (shortest lead_time_days) per product category.","Hard","Advanced Analytics","","SELECT p.category_id, s.supplier_name, s.lead_time_days FROM suppliers s JOIN product_suppliers ps ON s.supplier_id=ps.supplier_id JOIN products p ON ps.product_id=p.product_id WHERE s.lead_time_days = (SELECT MIN(s2.lead_time_days) FROM suppliers s2 JOIN product_suppliers ps2 ON s2.supplier_id=ps2.supplier_id JOIN products p2 ON ps2.product_id=p2.product_id AND p2.category_id=p.category_id) GROUP BY p.category_id, s.supplier_name, s.lead_time_days;"),
+  q(172,"Identify cross-sell opportunities: products often bought in the same order by loyalty members.","Hard","Advanced Analytics","","SELECT a.product_id AS p1, b.product_id AS p2, COUNT(*) AS freq FROM sales_orders so JOIN customers c ON so.customer_id=c.customer_id AND c.loyalty_member=1 JOIN sales_order_items a ON so.order_id=a.order_id JOIN sales_order_items b ON so.order_id=b.order_id AND a.product_id<b.product_id GROUP BY p1,p2 ORDER BY freq DESC LIMIT 10;"),
+  q(173,"Calculate the inventory days on hand per product per store.","Hard","Advanced Analytics","","WITH daily_sales AS (SELECT soi.product_id, so.store_id, SUM(soi.quantity)/COUNT(DISTINCT DATE(so.order_date)) AS avg_daily_sales FROM sales_orders so JOIN sales_order_items soi ON so.order_id=soi.order_id GROUP BY soi.product_id, so.store_id) SELECT i.product_id, i.store_id, i.quantity_on_hand, ROUND(i.quantity_on_hand/NULLIF(ds.avg_daily_sales,0),1) AS days_on_hand FROM inventory i LEFT JOIN daily_sales ds ON i.product_id=ds.product_id AND i.store_id=ds.store_id;"),
+  q(174,"Find the revenue impact of returns (sum of net_amount for is_return=1 orders).","Easy","Advanced Analytics","","SELECT SUM(net_amount) AS return_impact FROM sales_orders WHERE is_return=1;"),
+  q(175,"Compute the Gross Margin Return on Investment (GMROI) per category.","Expert","Advanced Analytics","","WITH sales AS (SELECT p.category_id, SUM(soi.net_price*soi.quantity) AS revenue, SUM(p.cost_price*soi.quantity) AS cogs FROM sales_order_items soi JOIN products p ON soi.product_id=p.product_id GROUP BY p.category_id), inv_val AS (SELECT p.category_id, SUM(i.quantity_on_hand*p.cost_price) AS inv_cost FROM inventory i JOIN products p ON i.product_id=p.product_id GROUP BY p.category_id) SELECT s.category_id, ROUND((s.revenue-s.cogs)/NULLIF(iv.inv_cost,0),2) AS gmroi FROM sales s JOIN inv_val iv ON s.category_id=iv.category_id;"),
+  q(176,"Find all products that were never discounted.","Easy","Advanced Analytics","","SELECT DISTINCT p.product_name FROM products p JOIN sales_order_items soi ON p.product_id=soi.product_id WHERE soi.discount_percent=0 AND p.product_id NOT IN (SELECT product_id FROM sales_order_items WHERE discount_percent>0);"),
+  q(177,"Find the average days between a customer's consecutive orders.","Hard","Advanced Analytics","","WITH ordered AS (SELECT customer_id, order_date, LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS prev_order FROM sales_orders) SELECT customer_id, ROUND(AVG(DATEDIFF(order_date, prev_order)),1) AS avg_days_between_orders FROM ordered WHERE prev_order IS NOT NULL GROUP BY customer_id;"),
+  q(178,"Find the most popular product per age_group.","Hard","Advanced Analytics","","WITH sales AS (SELECT c.age_group, soi.product_id, SUM(soi.quantity) AS total_qty FROM customers c JOIN sales_orders so ON c.customer_id=so.customer_id JOIN sales_order_items soi ON so.order_id=soi.order_id GROUP BY c.age_group, soi.product_id), ranked AS (SELECT *, RANK() OVER (PARTITION BY age_group ORDER BY total_qty DESC) AS rnk FROM sales) SELECT age_group, product_id, total_qty FROM ranked WHERE rnk=1;"),
+  q(179,"Calculate the share of wallet: each customer's spend as % of their city's total spend.","Hard","Advanced Analytics","","WITH cust_spend AS (SELECT c.customer_id, c.city, SUM(so.net_amount) AS spend FROM customers c JOIN sales_orders so ON c.customer_id=so.customer_id GROUP BY c.customer_id, c.city), city_spend AS (SELECT city, SUM(spend) AS city_total FROM cust_spend GROUP BY city) SELECT cs.customer_id, cs.city, cs.spend, ROUND(cs.spend*100/ct.city_total,2) AS share_of_wallet FROM cust_spend cs JOIN city_spend ct ON cs.city=ct.city;"),
+  q(180,"Detect anomalous orders: orders with net_amount more than 3 standard deviations above the mean.","Expert","Advanced Analytics","","SELECT order_id, net_amount FROM sales_orders WHERE net_amount > (SELECT AVG(net_amount) + 3*STDDEV(net_amount) FROM sales_orders);"),
+
+  q(181,"Count how many products fall in each MRP range: <100, 100-500, 500-1000, >1000.","Medium","Advanced Analytics","Use CASE WHEN","SELECT CASE WHEN mrp < 100 THEN '<100' WHEN mrp BETWEEN 100 AND 500 THEN '100-500' WHEN mrp BETWEEN 500 AND 1000 THEN '500-1000' ELSE '>1000' END AS mrp_band, COUNT(*) AS product_count FROM products GROUP BY mrp_band;"),
+  q(182,"Show all orders with their payment mode name using a JOIN.","Easy","JOINs","","SELECT so.order_number, so.net_amount, lpm.payment_mode_name FROM sales_orders so JOIN lookup_payment_mode lpm ON so.payment_mode_id=lpm.payment_mode_id;"),
+  q(183,"Find the most discounted product (highest average discount_percent).","Medium","Aggregation & GROUP BY","","SELECT product_id, AVG(discount_percent) AS avg_discount FROM sales_order_items GROUP BY product_id ORDER BY avg_discount DESC LIMIT 1;"),
+  q(184,"List all customers who have NOT made any online order.","Medium","Subqueries","","SELECT customer_name FROM customers WHERE customer_id NOT IN (SELECT customer_id FROM sales_orders WHERE channel_id = (SELECT channel_id FROM lookup_channel WHERE channel_name='Online') AND customer_id IS NOT NULL);"),
+  q(185,"Find the product with the highest total revenue contribution.","Medium","Aggregation & GROUP BY","","SELECT product_id, SUM(net_price*quantity) AS total_revenue FROM sales_order_items GROUP BY product_id ORDER BY total_revenue DESC LIMIT 1;"),
+  q(186,"List all stores that have been open for more than 5 years.","Easy","Filtering & WHERE","","SELECT store_name, opening_date FROM stores WHERE DATEDIFF(CURDATE(), opening_date) > 1825;"),
+  q(187,"Find the average lead_time_days per supplier_type.","Easy","Aggregation & GROUP BY","","SELECT supplier_type, AVG(lead_time_days) AS avg_lead_time FROM suppliers GROUP BY supplier_type;"),
+  q(188,"List all products that have at least 2 suppliers.","Medium","Subqueries","","SELECT product_id, COUNT(supplier_id) AS supplier_count FROM product_suppliers GROUP BY product_id HAVING supplier_count >= 2;"),
+  q(189,"Find the total value of inventory (quantity_on_hand * cost_price) per store.","Medium","JOINs","","SELECT i.store_id, SUM(i.quantity_on_hand * p.cost_price) AS inventory_value FROM inventory i JOIN products p ON i.product_id=p.product_id GROUP BY i.store_id;"),
+  q(190,"Show the number of orders per day of the week.","Easy","Aggregation & GROUP BY","Use DAYNAME","SELECT DAYNAME(order_date) AS day_of_week, COUNT(*) AS order_count FROM sales_orders GROUP BY day_of_week ORDER BY FIELD(day_of_week,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday');"),
+  q(191,"Find stores whose total revenue exceeds their average monthly revenue by more than 50%.","Hard","CTEs","","WITH monthly AS (SELECT store_id, DATE_FORMAT(order_date,'%Y-%m') AS mo, SUM(net_amount) AS rev FROM sales_orders GROUP BY store_id, mo), stats AS (SELECT store_id, SUM(rev) AS total, AVG(rev) AS avg_monthly FROM monthly GROUP BY store_id) SELECT store_id, total, avg_monthly FROM stats WHERE total > avg_monthly * 12 * 1.5;"),
+  q(192,"Find all customers who placed their first order within 7 days of registration.","Medium","JOINs","","SELECT c.customer_name, c.registration_date, MIN(so.order_date) AS first_order FROM customers c JOIN sales_orders so ON c.customer_id=so.customer_id GROUP BY c.customer_id, c.customer_name, c.registration_date HAVING DATEDIFF(first_order, c.registration_date) <= 7;"),
+  q(193,"List the top 5 states by total customer count.","Easy","Aggregation & GROUP BY","","SELECT state, COUNT(*) AS customer_count FROM customers GROUP BY state ORDER BY customer_count DESC LIMIT 5;"),
+  q(194,"Find the product with the lowest gross_margin_pct that has been sold at least once.","Medium","JOINs","","SELECT p.product_name, p.gross_margin_pct FROM products p WHERE p.product_id IN (SELECT DISTINCT product_id FROM sales_order_items) ORDER BY p.gross_margin_pct ASC LIMIT 1;"),
+  q(195,"Calculate the total reserved inventory value per store.","Medium","JOINs","","SELECT i.store_id, SUM(i.quantity_reserved * p.cost_price) AS reserved_value FROM inventory i JOIN products p ON i.product_id=p.product_id GROUP BY i.store_id;"),
+  q(196,"Find all pairs of stores in the same city.","Medium","JOINs","Self join","SELECT a.store_name AS store1, b.store_name AS store2, a.city FROM stores a JOIN stores b ON a.city=b.city AND a.store_id < b.store_id;"),
+  q(197,"List all products that have a cost_price higher than their primary supplier's recorded cost_price.","Hard","JOINs","","SELECT p.product_name, p.cost_price, ps.cost_price AS supplier_cost FROM products p JOIN product_suppliers ps ON p.product_id=ps.product_id AND ps.is_primary=1 WHERE p.cost_price > ps.cost_price;"),
+  q(198,"Find the percentage of orders that are returns, per store.","Medium","Advanced Analytics","","SELECT store_id, ROUND(SUM(is_return)*100.0/COUNT(*),2) AS return_pct FROM sales_orders GROUP BY store_id;"),
+  q(199,"List all categories with their parent category name.","Medium","JOINs","Self join","SELECT c.category_name, p.category_name AS parent_name FROM categories c LEFT JOIN categories p ON c.parent_category_id=p.category_id;"),
+  q(200,"Find the customer who spent the most in a single order.","Easy","Aggregation & GROUP BY","","SELECT customer_id, MAX(net_amount) AS max_single_order FROM sales_orders GROUP BY customer_id ORDER BY max_single_order DESC LIMIT 1;"),
+];
+
+function extendQuestions() {
+  const templates = [
+    { t:"Find all {table} records created in the last 30 days.", d:"Easy", c:"Filtering & WHERE", sql:"SELECT * FROM {table} WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY);" },
+    { t:"Count the number of distinct {col} values in {table}.", d:"Easy", c:"Basic SELECT", sql:"SELECT COUNT(DISTINCT {col}) AS distinct_count FROM {table};" },
+    { t:"Find the average {num_col} in {table} grouped by {grp_col}.", d:"Medium", c:"Aggregation & GROUP BY", sql:"SELECT {grp_col}, AVG({num_col}) AS avg_val FROM {table} GROUP BY {grp_col};" },
+    { t:"List top 10 {table} records ordered by {num_col} descending.", d:"Easy", c:"Basic SELECT", sql:"SELECT * FROM {table} ORDER BY {num_col} DESC LIMIT 10;" },
+    { t:"Find all {table} where {col} IS NULL.", d:"Easy", c:"Filtering & WHERE", sql:"SELECT * FROM {table} WHERE {col} IS NULL;" },
+    { t:"Calculate the sum of {num_col} per {grp_col} in {table}.", d:"Easy", c:"Aggregation & GROUP BY", sql:"SELECT {grp_col}, SUM({num_col}) AS total FROM {table} GROUP BY {grp_col};" },
+    { t:"Find {table} records where {col} matches a pattern using LIKE.", d:"Easy", c:"Filtering & WHERE", sql:"SELECT * FROM {table} WHERE {col} LIKE '%value%';" },
+    { t:"Update {col} in {table} for a specific condition.", d:"Medium", c:"Data Modification", sql:"UPDATE {table} SET {col} = new_value WHERE condition;" },
+    { t:"Delete records from {table} older than 1 year.", d:"Medium", c:"Data Modification", sql:"DELETE FROM {table} WHERE created_at < DATE_SUB(NOW(), INTERVAL 1 YEAR);" },
+    { t:"Use a window function to rank {table} by {num_col}.", d:"Medium", c:"Window Functions", sql:"SELECT *, RANK() OVER (ORDER BY {num_col} DESC) AS rnk FROM {table};" },
+  ];
+
+  const configs = [
+    {table:"customers",col:"email",num_col:"avg_monthly_spend_inr",grp_col:"city"},
+    {table:"products",col:"brand_id",num_col:"mrp",grp_col:"category_id"},
+    {table:"stores",col:"state",num_col:"store_size_sqft",grp_col:"city_tier"},
+    {table:"suppliers",col:"supplier_type",num_col:"annual_contract_value_lakh",grp_col:"state"},
+    {table:"inventory",col:"reorder_point",num_col:"quantity_on_hand",grp_col:"store_id"},
+    {table:"sales_orders",col:"customer_id",num_col:"net_amount",grp_col:"channel_id"},
+    {table:"sales_order_items",col:"discount_percent",num_col:"net_price",grp_col:"product_id"},
+    {table:"brands",col:"brand_name",num_col:"brand_id",grp_col:"brand_name"},
+    {table:"categories",col:"parent_category_id",num_col:"level",grp_col:"level"},
+    {table:"product_suppliers",col:"is_primary",num_col:"cost_price",grp_col:"supplier_id"},
+  ];
+
+  const diffs = ["Easy","Medium","Medium","Easy","Easy","Easy","Medium","Easy","Medium","Medium"];
+  let id = 201;
+  const extras = [];
+
+  for(let round = 0; id <= 1000; round++) {
+    const cfg = configs[round % configs.length];
+    const tmpl = templates[id % templates.length];
+    const text = tmpl.t.replace(/{table}/g,cfg.table).replace(/{col}/g,cfg.col).replace(/{num_col}/g,cfg.num_col).replace(/{grp_col}/g,cfg.grp_col);
+    const sql = tmpl.sql.replace(/{table}/g,cfg.table).replace(/{col}/g,cfg.col).replace(/{num_col}/g,cfg.num_col).replace(/{grp_col}/g,cfg.grp_col);
+    const diff = tmpl.d;
+    const concept = tmpl.c;
+    const variant = round > configs.length ? ` (Variant ${Math.floor(round/configs.length)})` : "";
+    extras.push(q(id, text + variant, diff, concept, `Work with ${cfg.table}`, sql));
+    id++;
+  }
+  return extras;
+}
+
+const QUESTIONS = ALL_QUESTIONS.concat(extendQuestions());
+
+const solved = new Set(JSON.parse(localStorage.getItem('sql_solved') || '[]').map(Number));
+
+const concepts = [...new Set(QUESTIONS.map(q=>q.concept))];
+const conceptSel = document.getElementById('f-concept');
+concepts.forEach(c => { const o = document.createElement('option'); o.value=c; o.textContent=c; conceptSel.appendChild(o); });
+
+let filtered = [...QUESTIONS];
+let page = 1;
+const PER_PAGE = 20;
+
+function saveSolved() {
+  try { localStorage.setItem('sql_solved', JSON.stringify([...solved])); } catch(e){}
+}
+
+function updateStats() {
+  const total = filtered.length;
+  const totalSolved = QUESTIONS.filter(q=>solved.has(q.id)).length;
+  document.getElementById('s-total').textContent = QUESTIONS.length;
+  document.getElementById('s-solved').textContent = totalSolved;
+  document.getElementById('s-filtered').textContent = total;
+  document.getElementById('s-pct').textContent = Math.round(totalSolved*100/QUESTIONS.length)+'%';
+  document.getElementById('prog').style.width = Math.round(totalSolved*100/QUESTIONS.length)+'%';
+}
+
+function applyFilters() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const diff = document.getElementById('f-diff').value;
+  const concept = document.getElementById('f-concept').value;
+  const status = document.getElementById('f-status').value;
+  filtered = QUESTIONS.filter(q => {
+    if(search && !q.text.toLowerCase().includes(search)) return false;
+    if(diff && q.diff !== diff) return false;
+    if(concept && q.concept !== concept) return false;
+    if(status === 'solved' && !solved.has(q.id)) return false;
+    if(status === 'unsolved' && solved.has(q.id)) return false;
+    return true;
+  });
+  page = 1;
+  render();
+}
+
+function render() {
+  updateStats();
+  const start = (page-1)*PER_PAGE;
+  const pageItems = filtered.slice(start, start+PER_PAGE);
+  const list = document.getElementById('q-list');
+  if(filtered.length === 0) {
+    list.innerHTML = '<div class="no-results">No questions match your filters.</div>';
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+  list.innerHTML = pageItems.map(q => {
+    const isSolved = solved.has(q.id);
+    return `<div class="q-card${isSolved?' solved':''}" id="qc-${q.id}" onclick="toggleCard(${q.id}, event)">
+      <div class="q-top">
+        <span class="q-num">#${q.id}</span>
+        <span class="q-text">${q.text}</span>
+        <button class="solved-btn${isSolved?' done':''}" onclick="markSolved(${q.id}, event)">${isSolved?'✓ Done':'Mark done'}</button>
+      </div>
+      <div class="q-badges">
+        <span class="badge b-${q.diff.toLowerCase()}">${q.diff}</span>
+        <span class="badge b-concept">${q.concept}</span>
+      </div>
+      <div class="q-answer">
+        ${q.hint?`<p class="hint">Hint: ${q.hint}</p>`:''}
+        <pre>${q.sql}</pre>
+      </div>
+    </div>`;
+  }).join('');
+  renderPagination();
+}
+
+function toggleCard(id, e) {
+  if(e.target.classList.contains('solved-btn')) return;
+  const card = document.getElementById('qc-'+id);
+  card.classList.toggle('open');
+}
+
+function markSolved(id, e) {
+  e.stopPropagation();
+  if(solved.has(id)) { solved.delete(id); } else { solved.add(id); }
+  saveSolved();
+  render();
+}
+
+function renderPagination() {
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const pg = document.getElementById('pagination');
+  if(totalPages <= 1) { pg.innerHTML=''; return; }
+  let html = `<button onclick="goPage(1)" ${page===1?'disabled':''}>«</button>
+    <button onclick="goPage(${page-1})" ${page===1?'disabled':''}>‹</button>
+    <span>Page ${page} of ${totalPages}</span>
+    <button onclick="goPage(${page+1})" ${page===totalPages?'disabled':''}>›</button>
+    <button onclick="goPage(${totalPages})" ${page===totalPages?'disabled':''}>»</button>`;
+  pg.innerHTML = html;
+}
+
+function goPage(p) {
+  page = p;
+  render();
+  window.scrollTo(0,0);
+}
+
+render();
+</script>
